@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>AWX Job Trigger</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container">
+    <h1 class="mt-5">Trigger AWX Job</h1>
+    <form id="triggerJobForm" class="form-inline mt-3">
+        <div class="form-group">
+            <label for="jobTemplateId" class="mr-2">Job Template ID:</label>
+            <input type="number" id="jobTemplateId" class="form-control mr-2" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Trigger Job</button>
+    </form>
+    <div id="jobResult" class="mt-5"></div>
+    <div id="jobOutput" class="mt-5"></div>
+</div>
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<script>
+
+$(document).ready(function(){
+	$.get('/api/awx/last-input',function(data){
+		if(data.includes("Job templates Id:  ")){
+			var jobTemplatedId = data.split("Job  template id: ")[1];
+			$('#jobTemplateId').val(jobTemplateId);
+			triggerJob(jobTemplateId);
+		}
+	});
+
+    $('#triggerJobForm').submit(function (event) {
+        event.preventDefault();
+        var jobTemplateId = $('#jobTemplateId').val();
+        triggerJob(jobTemplateId);
+        });
+    });
+    
+    function triggerJob(jobTemplateId){
+    	$.post('/api/awx/trigger-job/' + jobTemplateId, function (data) {
+            var jobId = data.id;
+            checkJobResult(jobId); });
+    }
+
+    function checkJobResult(jobId) {
+        $.get('/api/awx/job-result/' + jobId, function (data) {
+            $('#jobResult').html('<pre>' + JSON.stringify(data, null, 2) + '</pre>');
+            if (data.status === 'successful') {
+                getJobOutput(jobId);
+            } else {
+                setTimeout(function () {
+                    checkJobResult(jobId);
+                }, 5000); // Check every 5 seconds
+            }
+        });
+    }
+
+    function getJobOutput(jobId) {
+        $.get('/api/awx/job-output/' + jobId, function (data) {
+            $('#jobOutput').html('<pre>' + data + '</pre>');
+        });
+    }
+</script>
+</body>
+</html>
